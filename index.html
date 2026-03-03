@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Joiner Hero Suggester</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #111;
+            color: #eee;
+        }
+
+        select {
+            padding: 6px;
+            margin: 5px;
+        }
+
+        button {
+            padding: 8px 14px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .result {
+            margin-top: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .team {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #222;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Joiner Hero Suggester</h2>
+
+<p>Select Generation:</p>
+<select id="generationSelect" onchange="updateHeroDropdowns()">
+    <option value="1">Gen 1</option>
+    <option value="2">Gen 2</option>
+    <option value="3">Gen 3</option>
+    <option value="4">Gen 4</option>
+    <option value="5">Gen 5</option>
+    <option value="6">Gen 6</option>
+</select>
+
+<p>Select Opponent Joiner Heroes:</p>
+
+<div id="dropdownContainer"></div>
+
+<button onclick="simulate()">Simulate</button>
+
+<div class="result" id="results"></div>
+
+<script>
+
+// ===== HERO DATA BY GENERATION =====
+
+const heroData = {
+    1: {
+        Amadeus:{A1:0,A2:0.25,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0,D4:0,D5:0,D6:0},
+        Amane:{A1:0.25,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0,D4:0,D5:0,D6:0},
+        Chenko:{A1:0,A2:0.25,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0,D4:0,D5:0,D6:0},
+        Fahd:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0,D4:0,D5:0,D6:0.2},
+        Gordon:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0.25,D3:0,D4:0,D5:0,D6:0},
+        Howard:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0.2,D4:0,D5:0,D6:0},
+        Quinn:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0.2,D4:0,D5:0,D6:0},
+        Saul:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0.1,D2:0.15,D3:0,D4:0,D5:0,D6:0},
+        Yeonwoo:{A1:0,A2:0.25,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0,D4:0,D5:0,D6:0}
+    },
+    2: {
+        Hilde:{A1:0.15,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0.1,D2:0,D3:0,D4:0,D5:0,D6:0}
+    },
+    3: {
+        Eric:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0,D4:0.2,D5:0,D6:0}
+    },
+    4: {
+        Margot:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0,D2:0,D3:0,D4:0,D5:0,D6:0}
+    },
+    5: {
+        Vivian:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0.25,D1:0,D2:0,D3:0,D4:0,D5:0,D6:0}
+    },
+    6: {
+        Triton:{A1:0,A2:0,A3:0,A4:0,A5:0,A6:0,D1:0.25,D2:0,D3:0,D4:0,D5:0,D6:0}
+    }
+};
+
+let heroes = {};
+let heroNames = [];
+
+const container = document.getElementById("dropdownContainer");
+
+// ===== UPDATE HERO POOL BASED ON GEN =====
+
+function updateHeroDropdowns() {
+
+    const selectedGen = parseInt(document.getElementById("generationSelect").value);
+
+    heroes = {};
+    for (let g = 1; g <= selectedGen; g++) {
+        Object.assign(heroes, heroData[g]);
+    }
+
+    heroNames = Object.keys(heroes);
+
+    container.innerHTML = "";
+
+    for (let i = 0; i < 4; i++) {
+        let select = document.createElement("select");
+        select.id = "hero" + i;
+
+        heroNames.forEach(hero => {
+            let option = document.createElement("option");
+            option.value = hero;
+            option.textContent = hero;
+            select.appendChild(option);
+        });
+
+        container.appendChild(select);
+    }
+}
+
+// ===== CALCULATION FUNCTIONS =====
+
+function sumStats(team, prefix) {
+    let totals = {};
+    for (let i = 1; i <= 6; i++) {
+        let key = prefix + i;
+        totals[key] = 1;
+        team.forEach(hero => totals[key] += heroes[hero][key]);
+    }
+    return totals;
+}
+
+function calculateAdvantage(myTeam, opponentTeam) {
+    const YA = sumStats(myTeam, "A");
+    const YD = sumStats(myTeam, "D");
+    const OA = sumStats(opponentTeam, "A");
+    const OD = sumStats(opponentTeam, "D");
+
+    let YAC = 1, OAC = 1;
+
+    for (let i = 1; i <= 6; i++) {
+        YAC *= YA["A"+i] / OD["D"+i];
+        OAC *= OA["A"+i] / YD["D"+i];
+    }
+
+    return {YAC, OAC, advantage: YAC/OAC};
+}
+
+function generateCombinations(arr, size, start=0, combo=[], results=[]) {
+    if (combo.length === size) {
+        results.push([...combo]);
+        return;
+    }
+    for (let i = start; i < arr.length; i++) {
+        combo.push(arr[i]);
+        generateCombinations(arr, size, i, combo, results);
+        combo.pop();
+    }
+    return results;
+}
+
+function simulate() {
+
+    const opponentTeam = [];
+    for (let i = 0; i < 4; i++) {
+        opponentTeam.push(document.getElementById("hero"+i).value);
+    }
+
+    const allCombos = generateCombinations(heroNames, 4);
+    let results = [];
+
+    for (let team of allCombos) {
+        let {YAC, OAC, advantage} = calculateAdvantage(team, opponentTeam);
+        results.push({team, YAC, OAC, advantage});
+    }
+
+    results.sort((a,b) => b.advantage - a.advantage);
+
+    let output = "<h3>Top 50 Best Teams</h3>";
+
+    for (let i = 0; i < 50 && i < results.length; i++) {
+        output += `
+            <div class="team">
+                <strong>${i+1}. ${results[i].team.join(", ")}</strong><br>
+                Your Attacking Coefficient: ${results[i].YAC.toFixed(6)}<br>
+                Opponent's Attacking Coefficient: ${results[i].OAC.toFixed(6)}<br>
+                Your Advantage: ${results[i].advantage.toFixed(6)}
+            </div>
+        `;
+    }
+
+    document.getElementById("results").innerHTML = output;
+}
+
+// Initialize page
+updateHeroDropdowns();
+
+</script>
+
+</body>
+</html>
